@@ -17,7 +17,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 // Shopify API Helper
 async function getOrderData(orderNumberOrName) {
     try {
-        const response = await axios.get(`https://${SHOPIFY_STORE}/admin/api/2023-07/orders.json?name=${orderNumberOrName}`, {
+        const response = await axios.get(`https://${SHOPIFY_STORE}/admin/api/2023-07/orders.json?name=${orderNumberOrName}&status=any`, {
             headers: {
                 'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
                 'Content-Type': 'application/json'
