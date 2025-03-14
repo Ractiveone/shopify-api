@@ -15,14 +15,25 @@ const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Shopify API Helper
-async function getOrderData(orderNumberOrName) {
+async function getOrderData(query) {
     try {
-        const response = await axios.get(`https://${SHOPIFY_STORE}/admin/api/2023-07/orders.json?name=${orderNumberOrName}&status=any`, {
+        let searchField;
+        if (query.includes('@')) {
+            searchField = `email=${query}`;
+        } else if (query.includes(' ')) {
+            const [firstName, lastName] = query.split(' ');
+            searchField = `customer.first_name=${firstName}&customer.last_name=${lastName}`;
+        } else {
+            searchField = `name=${query}`;
+        }
+        
+        const response = await axios.get(`https://${SHOPIFY_STORE}/admin/api/2023-07/orders.json?${searchField}&status=any`, {
             headers: {
                 'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
                 'Content-Type': 'application/json'
             }
         });
+        
         return response.data.orders.length > 0 ? response.data.orders[0] : null;
     } catch (error) {
         console.error('Fehler beim Abrufen der Bestellung:', error);
