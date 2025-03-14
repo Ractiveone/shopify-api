@@ -1,6 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import cheerio from 'cheerio'; // Neu: Web Scraping Modul
 
 dotenv.config();
 
@@ -60,14 +61,42 @@ async function getChatGptResponse(message) {
     }
 }
 
-// Tracking API Helper
+// Tracking API Helper mit Web Scraping
 async function getTrackingStatus(trackingNumber) {
     try {
-        const response = await axios.get(`https://parcelsapp.com/api/v1/tracking/${trackingNumber}`);
-        return response.data;
+        const url = `https://parcelsapp.com/en/tracking/${trackingNumber}`;
+        const { data } = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        
+        const $ = cheerio.load(data);
+        let trackingUpdates = [];
+
+        // Tracking-Daten extrahieren
+        $('.tracking-event').each((index, element) => {
+            const date = $(element).find('.tracking-date').text().trim();
+            const time = $(element).find('.tracking-time').text().trim();
+            const status = $(element).find('.tracking-status').text().trim();
+            const location = $(element).find('.tracking-location').text().trim() || 'Unknown location';
+
+            trackingUpdates.push({
+                date,
+                time,
+                status,
+                location
+            });
+        });
+
+        if (trackingUpdates.length === 0) {
+            return { message: 'Keine Tracking-Updates gefunden. Bitte Tracking-Nummer überprüfen.' };
+        }
+
+        return {
+            trackingNumber,
+            updates: trackingUpdates
+        };
+
     } catch (error) {
         console.error('Fehler beim Abrufen der Sendungsverfolgung:', error);
-        return null;
+        return { message: 'Fehler beim Abrufen der Tracking-Daten. Bitte später erneut versuchen.' };
     }
 }
 
@@ -93,12 +122,12 @@ app.post('/chatgpt', async (req, res) => {
     res.json({ response });
 });
 
-// API Endpoint für Tracking-Status
+// API Endpoint für Tracking-Status mit Web Scraping
 app.get('/track/:trackingNumber', async (req, res) => {
     const trackingNumber = req.params.trackingNumber;
     const trackingData = await getTrackingStatus(trackingNumber);
     
-    if (!trackingData) {
+    if (!trackingData || trackingData.updates.length === 0) {
         return res.status(404).json({ message: 'Tracking-Daten nicht gefunden' });
     }
     
